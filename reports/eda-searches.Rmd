@@ -10,17 +10,35 @@ Aqui, exploramos esses dados.
 ```{r setup}
 library(tidyverse)
 library(here)
+library(scales)
 library(lubridate)
+library(ggstance)
+library(broom)
+library(ggpubr)
 theme_set(theme_bw())
 ```
 
 ```{r ETL}
-buscas = read_csv(here::here("data/search_data.csv"))
+buscas = read_csv(here::here("data/search_data.csv")) %>% 
+    mutate(session_date = stamp("1 Jan, 1999")(date(session_start_date))) %>% 
+    rename(session_datetime = session_start_date,
+           session_timestamp = session_start_timestamp) %>%
+    mutate(session_result = ifelse(num_clicks > 0, "clickthrough", "zero results"))
 ```
 
 ```{r}
-buscas %>% 
-    ggplot(aes(x = results)) + 
-    geom_histogram(binwidth = 5) 
+hpRst = buscas %>% ggplot(aes(x = session_result)) +
+       geom_histogram(stat = "count")
+
+vpRst = buscas %>% ggplot(aes(y = session_datetime, x = session_result)) +
+       geom_point() + geom_violin(scale = "count") +
+       scale_y_datetime(date_labels = "%b %d %H:%M", date_breaks = "12 hour")
+
+ggarrange(hpRst, vpRst)
+```
+
+
+```{r}
+
 ```
 
