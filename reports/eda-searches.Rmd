@@ -7,7 +7,7 @@ O objeto principal da análise são as buscas e a navegação depois da busca. C
 
 Aqui, exploramos esses dados. 
 
-```{r setup}
+```{r setup, results='hide'}
 library(tidyverse)
 library(here)
 library(scales)
@@ -15,30 +15,48 @@ library(lubridate)
 library(ggstance)
 library(broom)
 library(ggpubr)
+library(reshape2)
 theme_set(theme_bw())
 ```
 
-```{r ETL}
+```{r ETL, results='hide'}
 buscas = read_csv(here::here("data/search_data.csv")) %>% 
     mutate(session_date = stamp("1 Jan, 1999")(date(session_start_date))) %>% 
     rename(session_datetime = session_start_date,
            session_timestamp = session_start_timestamp) %>%
-    mutate(session_result = ifelse(num_clicks > 0, "clickthrough", "zero results"))
+    mutate(session_result = ifelse(results == 0, "zero results", ifelse(num_clicks > 0, "clickthrough", "no clicks")))
 ```
+A partir das informações do [wikimedia-research](https://github.com/wikimedia-research/Discovery-Hiring-Analyst-2016), vemos que a empresa se interessa pelas métricas:
 
-```{r}
+- *clickthrough rate*: Proporção das buscas que o usuário clicou em um resultado;
+- *zero results rate*: Proporção das buscas com 0 resultados.
+
+Podemos separar cada sessão e classificar da maneira acima: "clickthrough" e "zero results", além de um "no clicks" que corresponde a sessões com algum resultado, mas o usuário não clicou em nenhum deles. A distribuição entre as sessões desses tipos segue abaixo.
+
+```{r, results='hide', fig.width=7}
 hpRst = buscas %>% ggplot(aes(x = session_result)) +
        geom_histogram(stat = "count")
+
+lhpRst = buscas %>% ggplot(aes(x = session_result)) +
+       geom_histogram(stat = "count") + scale_y_log10()
 
 vpRst = buscas %>% ggplot(aes(y = session_datetime, x = session_result)) +
        geom_point() + geom_violin(scale = "count") +
        scale_y_datetime(date_labels = "%b %d %H:%M", date_breaks = "12 hour")
 
-ggarrange(hpRst, vpRst)
+ggarrange(ggarrange(hpRst, lhpRst),
+          vpRst, ncol = 1)
 ```
 
+Há mais sessões "clickthrough" do que "zero results", por uma margem pequena. A grande da maioria das sessões cai no caso de "no clicks".
 
 ```{r}
+buscasDiarias = buscas %>% group_by(session_date) %>%
+    summarise(clickthrough_rate = sum(session_result == "clickthrough")/n(),
+              zero_results_rate = sum(session_result == "zero results")/n())
 
+lpRt = buscasDiarias %>% melt(id = "session_date") %>% ggplot(aes(x = session_date, y = value, color = variable, group = variable)) + 
+    geom_line()
+lpRt
 ```
 
