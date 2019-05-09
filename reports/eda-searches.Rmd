@@ -1,6 +1,8 @@
 ---
 title: "EDA buscas"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 O objeto principal da análise são as buscas e a navegação depois da busca. Criamos esses dados a partir dos dados originais da wikimedia em `/data/search_data.csv`. 
@@ -48,7 +50,7 @@ ggarrange(ggarrange(hpRst, lhpRst),
           vpRst, ncol = 1)
 ```
 
-Há mais sessões "clickthrough" do que "zero results", por uma margem pequena. A grande da maioria das sessões cai no caso de "no clicks".
+Há mais sessões "clickthrough" do que "zero results", por uma margem pequena. A grande da maioria das sessões cai no caso de "no clicks". Se analisarmos as proporções ao longo dos dias dos dois eventos, temos:
 
 ```{r}
 buscasDiarias = buscas %>% group_by(session_date) %>%
@@ -59,4 +61,22 @@ lpRt = buscasDiarias %>% melt(id = "session_date") %>% ggplot(aes(x = session_da
     geom_line()
 lpRt
 ```
+
+Podemos ver que quase 1/5 das buscas, tendem a gerar 0 resultados, enquanto que em quase 1/4 das buscas o usuário clica em um dos resultados.
+
+
+Observando os primeiros clicks, separei uma análise da média diária, mediana e 3º Quartil dos dados diários.
+
+```{r}
+primeirosClicks = buscas %>% filter(session_result == "clickthrough") %>%
+    filter(!is.na(first_click)) %>%
+    group_by(session_date) %>%
+    summarise(mean_first_click = mean(first_click),
+              median_first_click = median(first_click),
+              thQ_first_click = quantile(first_click, c(0.75), type = 1))
+
+primeirosClicks
+```
+
+Podemos ver que os primeiros resultados são os primeiros clicks em até 75% dos casos. A média alta em alguns dos dias comprova que há exceções com clicks distantes, aumentando a média.
 
